@@ -5,16 +5,14 @@ import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 
-@TeleOp(name = "Basic Arcade Drive (Teal & Pink)", group = "TeleOp") // INTERCHANGEABLE: OpMode name displayed on Driver Station
+@TeleOp(name = "Arcade Drive", group = "TeleOp") // INTERCHANGEABLE: OpMode name displayed on Driver Station
 public class ArcadeDriveTeleOp extends LinearOpMode {
 
     // Declare drive motors (Teal = Left side, Pink = Right side)
     private DcMotor tealMotor = null;
     private DcMotor pinkMotor = null;
 
-    // Optional: Slow mode factor (1.0 = full power, 0.5 = half speed)
-    private static final double SLOW_MODE_FACTOR = 0.5; // INTERCHANGEABLE: Adjust speed reduction level
-
+    
     @Override
     public void runOpMode() {
 
@@ -60,12 +58,6 @@ public class ArcadeDriveTeleOp extends LinearOpMode {
             double tealPower = Math.pow(tealInput, 3);   // INTERCHANGEABLE: Use raw input or Math.pow(..., 3)
             double pinkPower = Math.pow(pinkInput, 3);   // INTERCHANGEABLE: Use raw input or Math.pow(..., 3)
 
-            // 4. SLOW MODE
-            // Hold Right Bumper for precision driving
-            if (gamepad1.right_bumper) { // INTERCHANGEABLE: Change trigger/bumper button preference
-                tealPower *= SLOW_MODE_FACTOR;
-                pinkPower *= SLOW_MODE_FACTOR;
-            }
 
             // 5. POWER APPLICATION
             tealMotor.setPower(tealPower);
@@ -76,7 +68,6 @@ public class ArcadeDriveTeleOp extends LinearOpMode {
             telemetry.addData("Turn Input", "%.2f", turn);
             telemetry.addData("Teal (Left) Power", "%.2f", tealPower);
             telemetry.addData("Pink (Right) Power", "%.2f", pinkPower);
-            telemetry.addData("Slow Mode Active", gamepad1.right_bumper);
             telemetry.update();
         }
     }
