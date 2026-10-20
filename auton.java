@@ -8,8 +8,8 @@ import com.qualcomm.robotcore.hardware.DcMotorSimple;
 @Autonomous(name = "Auton", group = "Autnonomous")
 public class auton extends LinearOpMode { 
 
-   private DcMotor tealmotor = null;
-   private Dcmotor pinkmotor = null;
+   private DcMotor tealMotor = null;
+   private Dcmotor pinkMotor = null;
 
     @Override
     public void runOpMode() {
@@ -22,6 +22,9 @@ public class auton extends LinearOpMode {
         tealMotor.setDirection(DcMotorSimple.Direction.FORWARD);  // INTERCHANGEABLE: Change to REVERSE if left runs backward
         pinkMotor.setDirection(DcMotorSimple.Direction.REVERSE);  // INTERCHANGEABLE: Change to FORWARD if right runs backward
 
+       tealMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+       pinkMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+
         // --- MOTOR BRAKING ---
         tealMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE); // INTERCHANGEABLE: Can be FLOAT
         pinkMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE); // INTERCHANGEABLE: Can be FLOAT
@@ -31,3 +34,24 @@ public class auton extends LinearOpMode {
 
         // Wait for the match to start on the Driver Station
         waitForStart();
+
+        tealMotor.setPower(0.4);
+        pinkMotor.setPower(0.4);
+        sleep(200);
+        tealMotor.setPower(1);
+        pinkMotor.setPower(0);
+        sleep(50);
+        tealMotor.setPower(0.4);
+        pinkMotor.setPower(0.4);
+        sleep(200);
+        tealMotor.setPower(1);
+        pinkMotor.setPower(0);
+        sleep(50);
+        tealMotor.setPower(0.4);
+        pinkMotor.setPower(0.4);
+        sleep(200);
+       
+     } 
+
+}
+   
