@@ -1,57 +1,67 @@
 package org.firstinspires.ftc.teamcode;
 
-import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
+import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 
-@Autonomous(name = "Auton", group = "Autnonomous")
+@Autonomous(name = "Auton", group = "Autonomous")
 public class auton extends LinearOpMode { 
 
-   private DcMotor tealMotor = null;
-   private Dcmotor pinkMotor = null;
+    // Changed to DcMotorEx to allow ticks-per-second velocity controls
+    private DcMotorEx tealMotor = null;
+    private DcMotorEx pinkMotor = null;
 
     @Override
     public void runOpMode() {
+        
+        // Initialize motors from the hardware map
+        tealMotor = hardwareMap.get(DcMotorEx.class, "tealMotor");
+        pinkMotor = hardwareMap.get(DcMotorEx.class, "pinkMotor");
 
-        // --- HARDWARE MAPPING ---
-        tealMotor = hardwareMap.get(DcMotor.class, "teal"); // INTERCHANGEABLE: Device configuration name for left
-        pinkMotor = hardwareMap.get(DcMotor.class, "pink"); // INTERCHANGEABLE: Device configuration name for right
+        // Set directions
+        tealMotor.setDirection(DcMotorSimple.Direction.FORWARD);  
+        pinkMotor.setDirection(DcMotorSimple.Direction.REVERSE);  
 
-        // --- MOTOR DIRECTIONS ---
-        tealMotor.setDirection(DcMotorSimple.Direction.FORWARD);  // INTERCHANGEABLE: Change to REVERSE if left runs backward
-        pinkMotor.setDirection(DcMotorSimple.Direction.REVERSE);  // INTERCHANGEABLE: Change to FORWARD if right runs backward
-
-       tealMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-       pinkMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        // Configure internal PID motor loops
+        tealMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        pinkMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
 
         // --- MOTOR BRAKING ---
-        tealMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE); // INTERCHANGEABLE: Can be FLOAT
-        pinkMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE); // INTERCHANGEABLE: Can be FLOAT
-
-        telemetry.addData("Status", "Initialized Arcade Drive. Ready!");
-        telemetry.update();
+        tealMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE); 
+        pinkMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE); 
 
         // Wait for the match to start on the Driver Station
         waitForStart();
 
-        tealMotor.setPower(0.4);
-        pinkMotor.setPower(0.4);
+        // 1. Move forward at ~1000 Ticks Per Second
+        tealMotor.setVelocity(1000);
+        pinkMotor.setVelocity(1000);
         sleep(200);
-        tealMotor.setPower(1);
-        pinkMotor.setPower(0);
+
+        // 2. Turn/Pivot (Teal full forward speed, Pink stopped)
+        tealMotor.setVelocity(2400);
+        pinkMotor.setVelocity(0);
         sleep(50);
-        tealMotor.setPower(0.4);
-        pinkMotor.setPower(0.4);
+
+        // 3. Move forward again
+        tealMotor.setVelocity(1000);
+        pinkMotor.setVelocity(1000);
         sleep(200);
-        tealMotor.setPower(1);
-        pinkMotor.setPower(0);
+
+        // 4. Turn/Pivot again
+        tealMotor.setVelocity(2400);
+        pinkMotor.setVelocity(0);
         sleep(50);
-        tealMotor.setPower(0.4);
-        pinkMotor.setPower(0.4);
+
+        // 5. Final forward push
+        tealMotor.setVelocity(1000);
+        pinkMotor.setVelocity(1000);
         sleep(200);
        
-     } 
-
+        // Stop the motors at the end of the routine
+        tealMotor.setVelocity(0);
+        pinkMotor.setVelocity(0);
+    } 
 }
-   
