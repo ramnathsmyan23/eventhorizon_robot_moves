@@ -3,65 +3,70 @@ package org.firstinspires.ftc.teamcode;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.hardware.DcMotor;
-import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 
-@Autonomous(name = "Auton", group = "Autonomous")
-public class auton extends LinearOpMode { 
+@Autonomous(name = "Basic Autonomous", group = "Autonomous")
+public class BasicAutonomous extends LinearOpMode {
 
-    // Changed to DcMotorEx to allow ticks-per-second velocity controls
-    private DcMotorEx tealMotor = null;
-    private DcMotorEx pinkMotor = null;
+    // Declare drive motors (Teal = Left side, Pink = Right side)
+    private DcMotor tealMotor = null;
+    private DcMotor pinkMotor = null;
 
     @Override
     public void runOpMode() {
-        
-        // Initialize motors from the hardware map
-        tealMotor = hardwareMap.get(DcMotorEx.class, "tealMotor");
-        pinkMotor = hardwareMap.get(DcMotorEx.class, "pinkMotor");
 
-        // Set directions
-        tealMotor.setDirection(DcMotorSimple.Direction.FORWARD);  
-        pinkMotor.setDirection(DcMotorSimple.Direction.REVERSE);  
+        // --- HARDWARE MAPPING ---
+        tealMotor = hardwareMap.get(DcMotor.class, "teal");
+        pinkMotor = hardwareMap.get(DcMotor.class, "pink");
 
-        // Configure internal PID motor loops
-        tealMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        pinkMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        // --- MOTOR DIRECTIONS ---
+        tealMotor.setDirection(DcMotorSimple.Direction.FORWARD);
+        pinkMotor.setDirection(DcMotorSimple.Direction.REVERSE);
 
         // --- MOTOR BRAKING ---
-        tealMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE); 
-        pinkMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE); 
+        tealMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        pinkMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+
+        telemetry.addData("Status", "Initialized Autonomous. Ready!");
+        telemetry.update();
 
         // Wait for the match to start on the Driver Station
         waitForStart();
 
-        // 1. Move forward at ~1000 Ticks Per Second
-        tealMotor.setVelocity(1000);
-        pinkMotor.setVelocity(1000);
-        sleep(200);
+        // Ensure opmode is still active before running steps
+        if (opModeIsActive()) {
 
-        // 2. Turn/Pivot (Teal full forward speed, Pink stopped)
-        tealMotor.setVelocity(2400);
-        pinkMotor.setVelocity(0);
-        sleep(50);
+            // --- STEP 1: Drive Forward ---
+            // Set both motors to 50% power
+            tealMotor.setPower(0.5);
+            pinkMotor.setPower(0.5);
+            
+            telemetry.addData("Path", "Driving Forward");
+            telemetry.update();
+            
+            // Keep driving for 2000 milliseconds (2 seconds)
+            sleep(2000);
 
-        // 3. Move forward again
-        tealMotor.setVelocity(1000);
-        pinkMotor.setVelocity(1000);
-        sleep(200);
+            // --- STEP 2: Turn ---
+            // Set motors in opposite directions to spin in place
+            tealMotor.setPower(0.4);
+            pinkMotor.setPower(-0.4);
+            
+            telemetry.addData("Path", "Turning");
+            telemetry.update();
+            
+            // Keep turning for 1000 milliseconds (1 second)
+            sleep(1000);
 
-        // 4. Turn/Pivot again
-        tealMotor.setVelocity(2400);
-        pinkMotor.setVelocity(0);
-        sleep(50);
-
-        // 5. Final forward push
-        tealMotor.setVelocity(1000);
-        pinkMotor.setVelocity(1000);
-        sleep(200);
-       
-        // Stop the motors at the end of the routine
-        tealMotor.setVelocity(0);
-        pinkMotor.setVelocity(0);
-    } 
+            // --- STEP 3: Stop Motors ---
+            tealMotor.setPower(0.0);
+            pinkMotor.setPower(0.0);
+            
+            telemetry.addData("Path", "Complete");
+            telemetry.update();
+            
+            // Brief pause at the end of the routine
+            sleep(500);
+        }
+    }
 }
