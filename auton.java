@@ -35,6 +35,38 @@ public class BasicAutonomous extends LinearOpMode {
 
         // Ensure opmode is still active before running steps
         if (opModeIsActive()) {
+            // --- STEP 1: Move to Garden ---
+            tealMotor.setPower(0.5);
+            pinkMotor.setPower(0.5);
+        
+            telemetry.addData("Path", "Driving Forward");
+            telemetry.update();
+
+            sleep(2000);
+
+            tealMotor.setPower(0.4);
+            pinkMotor.setPower(-0.4);
+            
+            telemetry.addData("Path", "Turning");
+            telemetry.update();
+
+            sleep(1000);
+
+            tealMotor.setPower(0.5);
+            pinkMotor.setPower(0.5);
+        
+            telemetry.addData("Path", "Driving Forward");
+            telemetry.update();
+
+            sleep(7000);
+
+        
+        
+        }
+        
+        
+        
+        if (opModeIsActive()) {
 
             // --- STEP 1: Drive Forward ---
             // Set both motors to 50% power
