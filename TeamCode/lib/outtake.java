@@ -9,3 +9,4 @@ import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 
 
+tealMotor = hardwareMap.get(Servo.class, "teal"); // INTERCHANGEABLE: Device configuration name for left
