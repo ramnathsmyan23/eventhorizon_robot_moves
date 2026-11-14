@@ -1,3 +1,4 @@
+
 package org.firstinspires.ftc.teamcode;
 
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
@@ -5,25 +6,43 @@ import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 
-@TeleOp(name = "Arcade Drive", group = "TeleOp") // INTERCHANGEABLE: OpMode name displayed on Driver Station
+@TeleOp(name = "Arcade Drive", group = "TeleOp")
+
 public class ArcadeDriveTeleOp extends LinearOpMode {
-  private DcMotor intakeMotor = null;
 
-  @Override
-  public void runOpMode() {
-    intakeMotor = hardwareMap.get(DcMotor.class, "intake");
-    
-    
+    private DcMotor intakeMotor = null;
+    private DcMotor outtakeMotor = null;
 
-    // OUTTAKE
-        if (gamepad1.right_bumper > 0.25) {
-          outtakeMotor.setPower(0.63);
-        }
-        //else if (gamepad1.left_bumper > 0.25) {
-          //outtakeMotor.setPower(0.7);
-        }
-        else {
-          outtakeMotor.setPower(0.0);
+    @Override
+    public void runOpMode() {
+
+        intakeMotor = hardwareMap.get(DcMotor.class, "intake");
+        outtakeMotor = hardwareMap.get(DcMotor.class, "outtake");
+
+        telemetry.addData("Status", "Initialized");
+        telemetry.update();
+
+        waitForStart();
+
+        while (opModeIsActive()) {
+
+            // OUTTAKE
+            if (gamepad1.right_bumper) {
+
+                outtakeMotor.setPower(0.63);
+
+            }
+            // else if (gamepad1.left_bumper) {
+            //     outtakeMotor.setPower(0.7);
+            // }
+
+            else {
+
+                outtakeMotor.setPower(0.0);
+
+            }
+
+            idle();
         }
     }
 }
