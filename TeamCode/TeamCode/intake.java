@@ -14,11 +14,11 @@ public class ArcadeDriveTeleOp extends LinearOpMode {
     intakeMotor = hardwareMap.get(DcMotor.class, "intake");
   
     // 4. INTAKE
-        if (gamepad1.left_trigger > 0.1) {
+        if (gamepad1.right_trigger > 0.1) {
           intakeMotor.setPower(0.7);
         }
-        else if (gamepad1.right_trigger > 0.25) {
-          intakeMotor.setPower(-1.0);
+        else if (gamepad1.left_trigger > 0.25) {
+          intakeMotor.setPower(-0.7);
         }
         else {
           intakeMotor.setPower(0.0);
