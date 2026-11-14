@@ -8,8 +8,13 @@ import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 
+@TeleOp(name="BioBuzz Outtake", group="TeleOp")
+  public class BioBuzzOuttake extends LinearOpMode {
 
-freethrow = hardwareMap.get(Servo.class, "A"); 
+  freethrow = hardwareMap.get(Servo.class, "A"); 
+
+    private DcMotor outtakeMotor;
+    private CRServo freethrow;
 
 // OUTAKE
 if (gamepad1.right_bumper > 0.25) {
@@ -20,6 +25,23 @@ else if (gamepad1.left_bumper > 0.25) {
 }  else {
   outtakeMotor.setPower(0.0);
 }
+
+while (opModeIsActive()) {
+            // OUTTAKE
+            if (gamepad1.right_bumper) {
+                outtakeMotor.setPower(1.0);
+            } else if (gamepad1.left_bumper) {
+                outtakeMotor.setPower(0.5);
+            } else {
+                outtakeMotor.setPower(0.0);
+            }
+
+            // FREETHROW
+            if (gamepad1.a) {
+                freethrow.setPower(1.0);
+            } else {
+                freethrow.setPower(0.0);
+            }
 
 ]
 
