@@ -1,50 +1,29 @@
 package org.firstinspires.ftc.teamcode;
 
-import static org.firstinspires.ftc.robotcore.external.BlocksOpModeCompanion.hardwareMap;
-import static org.firstinspires.ftc.robotcore.external.BlocksOpModeCompanion.telemetry;
-
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 
-@TeleOp(name="BioBuzz Outtake", group="TeleOp")
-  public class BioBuzzOuttake extends LinearOpMode {
+@TeleOp(name = "Arcade Drive", group = "TeleOp") // INTERCHANGEABLE: OpMode name displayed on Driver Station
+public class ArcadeDriveTeleOp extends LinearOpMode {
+  private DcMotor intakeMotor = null;
 
-  freethrow = hardwareMap.get(Servo.class, "A"); 
+  @Override
+  public void runOpMode() {
+    intakeMotor = hardwareMap.get(DcMotor.class, "intake");
+    
+    
 
-    private DcMotor outtakeMotor;
-    private CRServo freethrow;
-
-// OUTAKE
-if (gamepad1.right_bumper > 0.25) {
-  outtakeMotor.setPower(1.0);
-}
-else if (gamepad1.left_bumper > 0.25) {
-  outtakeMotor.setPower(0.5);
-}  else {
-  outtakeMotor.setPower(0.0);
-}
-
-while (opModeIsActive()) {
-            // OUTTAKE
-            if (gamepad1.right_bumper) {
-                outtakeMotor.setPower(1.0);
-            } else if (gamepad1.left_bumper) {
-                outtakeMotor.setPower(0.5);
-            } else {
-                outtakeMotor.setPower(0.0);
-            }
-
-            // FREETHROW
-            if (gamepad1.a) {
-                freethrow.setPower(1.0);
-            } else {
-                freethrow.setPower(0.0);
-            }
-
-]
-
-if (gamepad1.a) {
-    freethrow.setPower(1.0); 
+    // OUTTAKE
+        if (gamepad1.right_bumper > 0.25) {
+          outtakeMotor.setPower(0.63);
+        }
+        //else if (gamepad1.left_bumper > 0.25) {
+          //outtakeMotor.setPower(0.7);
+        }
+        else {
+          outtakeMotor.setPower(0.0);
+        }
+    }
 }
