@@ -1,4 +1,3 @@
-
 package org.firstinspires.ftc.teamcode;
 
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
@@ -28,8 +27,9 @@ public class everything {
         private boolean reverseMode = false;
         private boolean flywheelToggledOn = false;
 
-        // Flywheel starting speed
+        // Flywheel speeds
         private double flywheelPower = 55;
+        private double flywheelIdlePower = 300; // Adjust this value for your desired idle speed
 
         // Braking timer
         private ElapsedTime brakeTimer = new ElapsedTime();
@@ -101,7 +101,7 @@ public class everything {
 
                 boolean driveMoving =
                         Math.abs(currentGamepad.left_stick_y) > 0.05 ||
-                        Math.abs(currentGamepad.right_stick_x) > 0.05;
+                                Math.abs(currentGamepad.right_stick_x) > 0.05;
 
                 if (driveMoving) {
                     teal.setZeroPowerBehavior(ZeroPowerBehavior.FLOAT);
@@ -159,16 +159,22 @@ public class everything {
                     flywheelPower += 5;
                 }
 
-                // D-pad down decreases speed by 5
+                // D-pad down decreases speed by 5 (Fixed typo here)
                 if (currentGamepad.dpad_down &&
                         !previousGamepad.dpad_down) {
                     flywheelPower = Math.max(0, flywheelPower - 5);
                 }
 
+                // -------------------------
+                // FLYWHEEL POWER APPLICATION
+                // -------------------------
+
                 if (flywheelToggledOn) {
-                    flywheel.setVelocity(flywheelPower);
+                    flywheel.setVelocity(flywheelPower); // Full shooting speed
+                } else if (currentGamepad.y) {
+                    flywheel.setVelocity(flywheelIdlePower); // Low idle speed when holding Y
                 } else {
-                    flywheel.setVelocity(0);
+                    flywheel.setVelocity(0); // Completely off
                 }
 
                 // -------------------------
@@ -188,7 +194,7 @@ public class everything {
                 // -------------------------
 
                 telemetry.addData("Reverse Mode", reverseMode ? "ON" : "OFF");
-                telemetry.addData("Flywheel", flywheelToggledOn ? "ON" : "OFF");
+                telemetry.addData("Flywheel", flywheelToggledOn ? "ON" : (currentGamepad.y ? "IDLE" : "OFF"));
                 telemetry.addData("Flywheel Speed", flywheelPower);
                 telemetry.addData("Intake Power", intake.getPower());
                 telemetry.addData("Braking", brakingAfterRelease ? "YES" : "NO");
