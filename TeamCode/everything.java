@@ -8,6 +8,7 @@ import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.Gamepad;
 import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor.ZeroPowerBehavior;
+import com.qualcomm.robotcore.hardware.DcMotor.RunMode;
 
 public class everything {
 
@@ -25,11 +26,11 @@ public class everything {
 
         private boolean reverseMode = false;
         private boolean flywheelToggledOn = false;
+        private boolean flywheelIdleToggledOn = false;
 
         // Flywheel speeds (ticks per second, used with setVelocity)
-        // NOTE: check these values. Idle (300) is currently faster than shooting (55).
         private double flywheelPower = 55;
-        private double flywheelIdlePower = 300;
+        private double flywheelIdlePower = 5;
 
         // Joystick deadband
         private static final double DEADBAND = 0.05;
@@ -52,6 +53,10 @@ public class everything {
             pink.setZeroPowerBehavior(ZeroPowerBehavior.BRAKE);
 
             flywheel.setZeroPowerBehavior(ZeroPowerBehavior.FLOAT);
+
+            // Velocity readings need the encoder running
+            flywheel.setMode(RunMode.STOP_AND_RESET_ENCODER);
+            flywheel.setMode(RunMode.RUN_USING_ENCODER);
 
             telemetry.addLine("Ready!");
             telemetry.update();
@@ -123,6 +128,11 @@ public class everything {
                     flywheelToggledOn = !flywheelToggledOn;
                 }
 
+                // Press Y once to turn flywheel IDLE on/off
+                if (currentGamepad.y && !previousGamepad.y) {
+                    flywheelIdleToggledOn = !flywheelIdleToggledOn;
+                }
+
                 // -------------------------
                 // FLYWHEEL SPEED ADJUSTMENT
                 // -------------------------
@@ -145,8 +155,8 @@ public class everything {
 
                 if (flywheelToggledOn) {
                     flywheel.setVelocity(flywheelPower); // Full shooting speed
-                } else if (currentGamepad.y) {
-                    flywheel.setVelocity(flywheelIdlePower); // Low idle speed when holding Y
+                } else if (flywheelIdleToggledOn) {
+                    flywheel.setVelocity(flywheelIdlePower); // Low idle speed (toggled with Y)
                 } else {
                     flywheel.setVelocity(0); // Completely off
                 }
@@ -168,9 +178,10 @@ public class everything {
                 // -------------------------
 
                 telemetry.addData("Reverse Mode", reverseMode ? "ON" : "OFF");
-                telemetry.addData("Flywheel", flywheelToggledOn ? "ON" : (currentGamepad.y ? "IDLE" : "OFF"));
+                telemetry.addData("Flywheel", flywheelToggledOn ? "ON" : (flywheelIdleToggledOn ? "IDLE" : "OFF"));
                 telemetry.addData("Flywheel Target (ticks/s)", flywheelPower);
                 telemetry.addData("Flywheel Actual (ticks/s)", "%.1f", flywheel.getVelocity());
+                telemetry.addData("Flywheel Encoder Position", flywheel.getCurrentPosition());
                 telemetry.addData("Intake Power", intake.getPower());
                 telemetry.update();
 
