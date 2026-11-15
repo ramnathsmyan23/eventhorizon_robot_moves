@@ -1,3 +1,4 @@
+
 package org.firstinspires.ftc.teamcode;
 
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
@@ -13,9 +14,16 @@ import com.qualcomm.robotcore.util.Range;
 public class everything {
     @TeleOp(name = "Arcade Drive", group = "TeleOp")
     public static class ArcadeDriveTeleOp extends LinearOpMode {
+
         Gamepad currentGamepad = new Gamepad();
         Gamepad previousGamepad = new Gamepad();
 
+        // L3 DIRECTION TOGGLE
+        boolean reverseMode = false;
+        boolean previousL3State = false;
+
+        // FLYWHEEL TOGGLE
+        boolean flywheelToggledOn = false;
 
         @Override
         public void runOpMode() {
@@ -24,9 +32,11 @@ public class everything {
             // Drive motors
             DcMotor tealMotor = hardwareMap.get(DcMotor.class, "teal");
             DcMotor pinkMotor = hardwareMap.get(DcMotor.class, "pink");
+
             // Flywheel motor
             DcMotorEx flywheel = hardwareMap.get(DcMotorEx.class, "flywheel");
             DcMotor intakeMotor = hardwareMap.get(DcMotor.class, "intake");
+
             // Continuous Rotation Servo mapping
             CRServo gateServo = hardwareMap.get(CRServo.class, "gateServo");
 
@@ -53,9 +63,28 @@ public class everything {
                 previousGamepad.copy(gamepad1);
                 currentGamepad.copy(gamepad1);
 
+                // =================================
+                // L3 BUTTON - FLIP 180 DEGREES
+                // =================================
+
+                boolean currentL3State = currentGamepad.left_stick_button;
+
+                if (currentL3State && !previousL3State) {
+                    reverseMode = !reverseMode;
+                }
+
+                previousL3State = currentL3State;
+
+
                 // 1. ARCADE DRIVE INPUT
                 double drive = -currentGamepad.left_stick_y;
                 double turn = currentGamepad.right_stick_x;
+
+                // L3 REVERSE MODE
+                if (reverseMode) {
+                    drive = -drive;
+                    turn = -turn;
+                }
 
                 // 2. MIXED MOTOR POWER
                 double tealInput = drive + turn;
@@ -84,7 +113,6 @@ public class everything {
                 if (currentGamepad.dpad_down && !previousGamepad.dpad_down) {
                     flywheelPower -= 10;
                 }
-
 
 
                 // 5. APPLY MOTOR POWER
@@ -119,7 +147,7 @@ public class everything {
                 } else {
                     flywheel.setVelocity(0);
                 }
-                
+
                 // GATE SERVO CONTROL
                 if (gamepad1.a) {
                     gateServo.setPower(0.8);
@@ -138,6 +166,10 @@ public class everything {
                 telemetry.addData("Flywheel Power", "%.3f", flywheelPower);
                 telemetry.addData("Current Flywheel Power", flywheel.getVelocity());
                 telemetry.addData("Servo Power", gateServo.getPower());
+
+                // L3 STATUS
+                telemetry.addData("L3 Direction",
+                        reverseMode ? "REVERSED 180" : "NORMAL");
 
                 telemetry.update();
                 previousGamepad.copy(currentGamepad);
