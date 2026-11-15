@@ -9,6 +9,7 @@ import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.Gamepad;
 import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor.ZeroPowerBehavior;
+import com.qualcomm.robotcore.util.ElapsedTime;
 
 public class everything {
 
@@ -27,8 +28,13 @@ public class everything {
         private boolean reverseMode = false;
         private boolean flywheelToggledOn = false;
 
-        // Reduced starting flywheel speed
-        private double flywheelPower = 250;
+        // Flywheel starting speed
+        private double flywheelPower = 55;
+
+        // Braking timer
+        private ElapsedTime brakeTimer = new ElapsedTime();
+        private boolean previousDriveMoving = false;
+        private boolean brakingAfterRelease = false;
 
         @Override
         public void runOpMode() {
@@ -88,6 +94,38 @@ public class everything {
 
                 teal.setPower(leftPower);
                 pink.setPower(rightPower);
+
+                // -------------------------
+                // DRIVE BRAKING
+                // -------------------------
+
+                boolean driveMoving =
+                        Math.abs(currentGamepad.left_stick_y) > 0.05 ||
+                        Math.abs(currentGamepad.right_stick_x) > 0.05;
+
+                if (driveMoving) {
+                    teal.setZeroPowerBehavior(ZeroPowerBehavior.FLOAT);
+                    pink.setZeroPowerBehavior(ZeroPowerBehavior.FLOAT);
+                    brakingAfterRelease = false;
+
+                } else if (previousDriveMoving) {
+                    // Joystick was just released: start 0.1-second brake
+                    teal.setZeroPowerBehavior(ZeroPowerBehavior.BRAKE);
+                    pink.setZeroPowerBehavior(ZeroPowerBehavior.BRAKE);
+
+                    brakeTimer.reset();
+                    brakingAfterRelease = true;
+
+                } else if (brakingAfterRelease &&
+                        brakeTimer.seconds() >= 0.1) {
+                    // After 0.1 seconds, switch to coast
+                    teal.setZeroPowerBehavior(ZeroPowerBehavior.FLOAT);
+                    pink.setZeroPowerBehavior(ZeroPowerBehavior.FLOAT);
+
+                    brakingAfterRelease = false;
+                }
+
+                previousDriveMoving = driveMoving;
 
                 // -------------------------
                 // INTAKE
@@ -153,6 +191,7 @@ public class everything {
                 telemetry.addData("Flywheel", flywheelToggledOn ? "ON" : "OFF");
                 telemetry.addData("Flywheel Speed", flywheelPower);
                 telemetry.addData("Intake Power", intake.getPower());
+                telemetry.addData("Braking", brakingAfterRelease ? "YES" : "NO");
                 telemetry.update();
 
                 // Save current gamepad state for next loop
