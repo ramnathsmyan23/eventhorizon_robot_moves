@@ -8,7 +8,6 @@ import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.Gamepad;
 import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor.ZeroPowerBehavior;
-import com.qualcomm.robotcore.util.ElapsedTime;
 
 public class everything {
 
@@ -27,14 +26,13 @@ public class everything {
         private boolean reverseMode = false;
         private boolean flywheelToggledOn = false;
 
-        // Flywheel speeds
+        // Flywheel speeds (ticks per second, used with setVelocity)
+        // NOTE: check these values. Idle (300) is currently faster than shooting (55).
         private double flywheelPower = 55;
-        private double flywheelIdlePower = 300; // Adjust this value for your desired idle speed
+        private double flywheelIdlePower = 300;
 
-        // Braking timer
-        private ElapsedTime brakeTimer = new ElapsedTime();
-        private boolean previousDriveMoving = false;
-        private boolean brakingAfterRelease = false;
+        // Joystick deadband
+        private static final double DEADBAND = 0.05;
 
         @Override
         public void runOpMode() {
@@ -48,6 +46,10 @@ public class everything {
             teal.setDirection(DcMotorSimple.Direction.FORWARD);
             pink.setDirection(DcMotorSimple.Direction.REVERSE);
             flywheel.setDirection(DcMotorSimple.Direction.REVERSE);
+
+            // Drive motors always BRAKE so the robot stops as soon as power hits 0
+            teal.setZeroPowerBehavior(ZeroPowerBehavior.BRAKE);
+            pink.setZeroPowerBehavior(ZeroPowerBehavior.BRAKE);
 
             flywheel.setZeroPowerBehavior(ZeroPowerBehavior.FLOAT);
 
@@ -66,6 +68,10 @@ public class everything {
 
                 double drive = -currentGamepad.left_stick_y;
                 double turn = currentGamepad.right_stick_x;
+
+                // Deadband: hard zero near center so motors get exactly 0 power
+                if (Math.abs(drive) < DEADBAND) drive = 0;
+                if (Math.abs(turn) < DEADBAND) turn = 0;
 
                 // Cubic sensitivity
                 drive = Math.pow(drive, 3);
@@ -94,38 +100,6 @@ public class everything {
 
                 teal.setPower(leftPower);
                 pink.setPower(rightPower);
-
-                // -------------------------
-                // DRIVE BRAKING
-                // -------------------------
-
-                boolean driveMoving =
-                        Math.abs(currentGamepad.left_stick_y) > 0.05 ||
-                                Math.abs(currentGamepad.right_stick_x) > 0.05;
-
-                if (driveMoving) {
-                    teal.setZeroPowerBehavior(ZeroPowerBehavior.FLOAT);
-                    pink.setZeroPowerBehavior(ZeroPowerBehavior.FLOAT);
-                    brakingAfterRelease = false;
-
-                } else if (previousDriveMoving) {
-                    // Joystick was just released: start 0.1-second brake
-                    teal.setZeroPowerBehavior(ZeroPowerBehavior.BRAKE);
-                    pink.setZeroPowerBehavior(ZeroPowerBehavior.BRAKE);
-
-                    brakeTimer.reset();
-                    brakingAfterRelease = true;
-
-                } else if (brakingAfterRelease &&
-                        brakeTimer.seconds() >= 0.1) {
-                    // After 0.1 seconds, switch to coast
-                    teal.setZeroPowerBehavior(ZeroPowerBehavior.FLOAT);
-                    pink.setZeroPowerBehavior(ZeroPowerBehavior.FLOAT);
-
-                    brakingAfterRelease = false;
-                }
-
-                previousDriveMoving = driveMoving;
 
                 // -------------------------
                 // INTAKE
@@ -159,7 +133,7 @@ public class everything {
                     flywheelPower += 5;
                 }
 
-                // D-pad down decreases speed by 5 (Fixed typo here)
+                // D-pad down decreases speed by 5
                 if (currentGamepad.dpad_down &&
                         !previousGamepad.dpad_down) {
                     flywheelPower = Math.max(0, flywheelPower - 5);
@@ -195,9 +169,9 @@ public class everything {
 
                 telemetry.addData("Reverse Mode", reverseMode ? "ON" : "OFF");
                 telemetry.addData("Flywheel", flywheelToggledOn ? "ON" : (currentGamepad.y ? "IDLE" : "OFF"));
-                telemetry.addData("Flywheel Speed", flywheelPower);
+                telemetry.addData("Flywheel Target (ticks/s)", flywheelPower);
+                telemetry.addData("Flywheel Actual (ticks/s)", "%.1f", flywheel.getVelocity());
                 telemetry.addData("Intake Power", intake.getPower());
-                telemetry.addData("Braking", brakingAfterRelease ? "YES" : "NO");
                 telemetry.update();
 
                 // Save current gamepad state for next loop
