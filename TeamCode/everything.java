@@ -1,271 +1,173 @@
 
 package org.firstinspires.ftc.teamcode;
 
-import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
-import com.qualcomm.robotcore.hardware.CRServo;
-import com.qualcomm.robotcore.hardware.Gamepad;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
+import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
+import com.qualcomm.robotcore.hardware.Gamepad;
+import com.qualcomm.robotcore.hardware.CRServo;
+import com.qualcomm.robotcore.hardware.DcMotor.ZeroPowerBehavior;
 
 public class everything {
 
     @TeleOp(name = "Arcade Drive", group = "TeleOp")
     public static class ArcadeDriveTeleOp extends LinearOpMode {
 
-        Gamepad currentGamepad = new Gamepad();
-        Gamepad previousGamepad = new Gamepad();
+        private DcMotor teal;
+        private DcMotor pink;
+        private DcMotor intake;
+        private DcMotorEx flywheel;
+        private CRServo gateServo;
 
-        // L3 DIRECTION TOGGLE
-        boolean reverseMode = false;
+        private Gamepad currentGamepad = new Gamepad();
+        private Gamepad previousGamepad = new Gamepad();
 
-        // FLYWHEEL TOGGLE
-        boolean flywheelToggledOn = false;
+        private boolean reverseMode = false;
+        private boolean flywheelToggledOn = false;
+
+        // Reduced starting flywheel speed
+        private double flywheelPower = 250;
 
         @Override
         public void runOpMode() {
 
-            // =================================
-            // HARDWARE MAPPING
-            // =================================
+            teal = hardwareMap.get(DcMotor.class, "teal");
+            pink = hardwareMap.get(DcMotor.class, "pink");
+            intake = hardwareMap.get(DcMotor.class, "intake");
+            flywheel = hardwareMap.get(DcMotorEx.class, "flywheel");
+            gateServo = hardwareMap.get(CRServo.class, "gateServo");
 
-            DcMotor tealMotor = hardwareMap.get(DcMotor.class, "teal");
-            DcMotor pinkMotor = hardwareMap.get(DcMotor.class, "pink");
-
-            DcMotorEx flywheel = hardwareMap.get(DcMotorEx.class, "flywheel");
-
-            DcMotor intakeMotor = hardwareMap.get(DcMotor.class, "intake");
-
-            CRServo gateServo = hardwareMap.get(CRServo.class, "gateServo");
-
-
-            // =================================
-            // MOTOR DIRECTIONS
-            // =================================
-
-            tealMotor.setDirection(DcMotorSimple.Direction.FORWARD);
-            pinkMotor.setDirection(DcMotorSimple.Direction.REVERSE);
+            teal.setDirection(DcMotorSimple.Direction.FORWARD);
+            pink.setDirection(DcMotorSimple.Direction.REVERSE);
             flywheel.setDirection(DcMotorSimple.Direction.REVERSE);
 
+            flywheel.setZeroPowerBehavior(ZeroPowerBehavior.FLOAT);
 
-            // =================================
-            // MOTOR BRAKING
-            // =================================
-
-            tealMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
-            pinkMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
-            flywheel.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
-
-
-            // INITIAL FLYWHEEL SPEED
-            double flywheelPower = 300;
-
-
-            telemetry.addData("Status", "Initialized. Ready!");
+            telemetry.addLine("Ready!");
             telemetry.update();
 
             waitForStart();
 
-
-            // =================================
-            // MAIN TELEOP LOOP
-            // =================================
-
             while (opModeIsActive()) {
-
-                // IMPORTANT:
-                // Read current controller FIRST.
-                // Previous controller is saved at the end.
 
                 currentGamepad.copy(gamepad1);
 
-
-                // =================================
-                // L3 BUTTON - 180 DEGREE TOGGLE
-                // =================================
-
-                if (currentGamepad.left_stick_button &&
-                        !previousGamepad.left_stick_button) {
-
-                    reverseMode = !reverseMode;
-                }
-
-
-                // =================================
-                // 1. ARCADE DRIVE INPUT
-                // =================================
+                // -------------------------
+                // ARCADE DRIVE
+                // -------------------------
 
                 double drive = -currentGamepad.left_stick_y;
                 double turn = currentGamepad.right_stick_x;
 
+                // Cubic sensitivity
+                drive = Math.pow(drive, 3);
+                turn = Math.pow(turn, 3);
 
-                // =================================
-                // L3 REVERSE MODE
-                // FLIP DRIVE AND TURN
-                // =================================
+                // L3 toggles reverse mode
+                if (currentGamepad.left_stick_button &&
+                        !previousGamepad.left_stick_button) {
+                    reverseMode = !reverseMode;
+                }
 
                 if (reverseMode) {
                     drive = -drive;
                     turn = -turn;
                 }
 
+                double leftPower = drive + turn;
+                double rightPower = drive - turn;
 
-                // =================================
-                // 2. MIXED MOTOR POWER
-                // =================================
+                // Keep motor power within range
+                double max = Math.max(1.0,
+                        Math.max(Math.abs(leftPower), Math.abs(rightPower)));
 
-                double tealInput = drive + turn;
-                double pinkInput = drive - turn;
+                leftPower /= max;
+                rightPower /= max;
 
+                teal.setPower(leftPower);
+                pink.setPower(rightPower);
 
-                // NORMALIZE DRIVE INPUTS
-
-                double max = Math.max(
-                        Math.abs(tealInput),
-                        Math.abs(pinkInput)
-                );
-
-                if (max > 1.0) {
-                    tealInput /= max;
-                    pinkInput /= max;
-                }
-
-
-                // =================================
-                // 3. CUBIC DRIVE SENSITIVITY
-                // =================================
-
-                double tealPower = Math.pow(tealInput, 3);
-                double pinkPower = Math.pow(pinkInput, 3);
-
-
-                // =================================
-                // 4. FLYWHEEL SPEED ADJUSTMENT
-                // =================================
-
-                if (currentGamepad.dpad_up &&
-                        !previousGamepad.dpad_up) {
-
-                    flywheelPower += 10;
-                }
-
-                if (currentGamepad.dpad_down &&
-                        !previousGamepad.dpad_down) {
-
-                    flywheelPower -= 10;
-                }
-
-
-                // =================================
-                // 5. APPLY DRIVE MOTOR POWER
-                // =================================
-
-                tealMotor.setPower(tealPower);
-                pinkMotor.setPower(pinkPower);
-
-
-                // =================================
-                // 6. INTAKE CONTROL
-                // =================================
+                // -------------------------
+                // INTAKE
+                // -------------------------
 
                 if (currentGamepad.left_trigger > 0.25) {
-
-                    intakeMotor.setPower(1);
-
+                    intake.setPower(1.0);
                 } else if (currentGamepad.left_bumper) {
-
-                    intakeMotor.setPower(-1);
-
+                    intake.setPower(-0.7);
                 } else {
-
-                    intakeMotor.setPower(0.0);
+                    intake.setPower(0);
                 }
 
+                // -------------------------
+                // FLYWHEEL TOGGLE
+                // -------------------------
 
-                // =================================
-                // 7. FLYWHEEL TOGGLE
-                // RIGHT TRIGGER
-                // =================================
-
+                // Press right trigger once to turn flywheel ON/OFF
                 if (currentGamepad.right_trigger > 0.25 &&
                         previousGamepad.right_trigger <= 0.25) {
-
                     flywheelToggledOn = !flywheelToggledOn;
                 }
 
+                // -------------------------
+                // FLYWHEEL SPEED ADJUSTMENT
+                // -------------------------
 
-                // APPLY FLYWHEEL SPEED
+                // D-pad up increases speed by 5
+                if (currentGamepad.dpad_up &&
+                        !previousGamepad.dpad_up) {
+                    flywheelPower += 5;
+                }
+
+                // D-pad down decreases speed by 5
+                if (currentGamepad.dpad_down &&
+                        !previousGamepad.dpad_down) {
+                    flywheelPower = Math.max(0, flywheelPower - 5);
+                }
 
                 if (flywheelToggledOn) {
-
                     flywheel.setVelocity(flywheelPower);
-
                 } else {
-
                     flywheel.setVelocity(0);
                 }
 
-
-                // =================================
-                // 8. GATE SERVO CONTROL
-                // =================================
+                // -------------------------
+                // GATE SERVO
+                // -------------------------
 
                 if (currentGamepad.a) {
-
                     gateServo.setPower(0.8);
-
                 } else if (currentGamepad.b) {
-
                     gateServo.setPower(-0.8);
-
                 } else {
-
-                    gateServo.setPower(0.0);
+                    gateServo.setPower(0);
                 }
 
+                // -------------------------
+                // TELEMETRY
+                // -------------------------
 
-                // =================================
-                // 9. TELEMETRY
-                // =================================
-
-                telemetry.addData("Drive Input", "%.2f", drive);
-                telemetry.addData("Turn Input", "%.2f", turn);
-
-                telemetry.addData("Teal Power", "%.2f", tealPower);
-                telemetry.addData("Pink Power", "%.2f", pinkPower);
-
-                telemetry.addData("Flywheel Speed Setting", "%.0f", flywheelPower);
-                telemetry.addData("Current Flywheel Speed", "%.0f", flywheel.getVelocity());
-
-                telemetry.addData("Flywheel Status",
-                        flywheelToggledOn ? "ON" : "OFF");
-
-                telemetry.addData("Intake Power", intakeMotor.getPower());
-
-                telemetry.addData("Servo Power", gateServo.getPower());
-
-                telemetry.addData("L3 Direction",
-                        reverseMode ? "REVERSED 180" : "NORMAL");
-
+                telemetry.addData("Reverse Mode", reverseMode ? "ON" : "OFF");
+                telemetry.addData("Flywheel", flywheelToggledOn ? "ON" : "OFF");
+                telemetry.addData("Flywheel Speed", flywheelPower);
+                telemetry.addData("Intake Power", intake.getPower());
                 telemetry.update();
 
-
-                // SAVE CURRENT CONTROLLER FOR NEXT LOOP
+                // Save current gamepad state for next loop
                 previousGamepad.copy(currentGamepad);
             }
 
+            // -------------------------
+            // STOP ALL MOTORS
+            // -------------------------
 
-            // =================================
-            // STOP MOTORS WHEN TELEOP ENDS
-            // =================================
-
-            tealMotor.setPower(0);
-            pinkMotor.setPower(0);
-            intakeMotor.setPower(0);
+            teal.setPower(0);
+            pink.setPower(0);
+            intake.setPower(0);
             flywheel.setVelocity(0);
             gateServo.setPower(0);
-
         }
     }
 }
