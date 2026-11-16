@@ -29,7 +29,7 @@ public class everything {
         private boolean flywheelIdleToggledOn = false;
 
         // Flywheel speeds (ticks per second, used with setVelocity)
-        private double flywheelPower = 20;
+        private double flywheelPower = 50;
         private double flywheelIdlePower = 5;
 
         // Joystick deadband
