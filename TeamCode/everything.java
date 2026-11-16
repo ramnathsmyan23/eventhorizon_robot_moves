@@ -1,3 +1,4 @@
+
 package org.firstinspires.ftc.teamcode;
 
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
@@ -26,7 +27,7 @@ public class everything {
 
         private boolean reverseMode = false;
         private boolean flywheelToggledOn = false;
-        private boolean flywheelIdleToggledOn = false;
+        private boolean flywheelIdleToggledOn = true;
 
         // Flywheel speeds (ticks per second, used with setVelocity)
         private double flywheelPower = 20;
@@ -137,13 +138,13 @@ public class everything {
                 // FLYWHEEL SPEED ADJUSTMENT
                 // -------------------------
 
-                // D-pad up increases speed by 5
+                // D-pad up increases speed by 1
                 if (currentGamepad.dpad_up &&
                         !previousGamepad.dpad_up) {
                     flywheelPower += 1;
                 }
 
-                // D-pad down decreases speed by 5
+                // D-pad down decreases speed by 1
                 if (currentGamepad.dpad_down &&
                         !previousGamepad.dpad_down) {
                     flywheelPower = Math.max(0, flywheelPower - 1);
@@ -154,11 +155,11 @@ public class everything {
                 // -------------------------
 
                 if (flywheelToggledOn) {
-                    flywheel.setVelocity(flywheelPower); // Full shooting speed
+                    flywheel.setPower(1.0); // Full shooting power
                 } else if (flywheelIdleToggledOn) {
-                    flywheel.setVelocity(flywheelIdlePower); // Low idle speed (toggled with Y)
+                    flywheel.setPower(0.30); // 30% idle power
                 } else {
-                    flywheel.setVelocity(0); // Completely off
+                    flywheel.setPower(0); // Completely off
                 }
 
                 // -------------------------
@@ -196,7 +197,7 @@ public class everything {
             teal.setPower(0);
             pink.setPower(0);
             intake.setPower(0);
-            flywheel.setVelocity(0);
+            flywheel.setPower(0);
             gateServo.setPower(0);
         }
     }
