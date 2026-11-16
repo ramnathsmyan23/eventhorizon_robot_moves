@@ -29,7 +29,7 @@ public class everything {
         private boolean flywheelIdleToggledOn = false;
 
         // Flywheel speeds (ticks per second, used with setVelocity)
-        private double flywheelPower = 55;
+        private double flywheelPower = 20;
         private double flywheelIdlePower = 5;
 
         // Joystick deadband
@@ -140,13 +140,13 @@ public class everything {
                 // D-pad up increases speed by 5
                 if (currentGamepad.dpad_up &&
                         !previousGamepad.dpad_up) {
-                    flywheelPower += 5;
+                    flywheelPower += 1;
                 }
 
                 // D-pad down decreases speed by 5
                 if (currentGamepad.dpad_down &&
                         !previousGamepad.dpad_down) {
-                    flywheelPower = Math.max(0, flywheelPower - 5);
+                    flywheelPower = Math.max(0, flywheelPower - 1);
                 }
 
                 // -------------------------
