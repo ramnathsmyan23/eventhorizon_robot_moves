@@ -22,12 +22,20 @@ public class auton extends LinearOpMode {
     private static final double DRIVE_POWER = 0.5;
     private static final double TURN_POWER = 0.4;
 
-    // Times in milliseconds
-    private static final int FORWARD_MS = 1100;
-    private static final int TURN_LEFT_MS = 520;
-    private static final int BACK_1_MS = 230;
-    private static final int TURN_RIGHT_MS = 520;
-    private static final int BACK_2_MS = 870;
+    // =========================================
+    // MOVEMENT CALIBRATION
+    // Diagram estimate: 1 second = 50 inches
+    // =========================================
+
+    // STRAIGHT MOVEMENT TIMES
+    private static final int FORWARD_MS = 1140;  // 57 inches forward
+    private static final int BACK_1_MS = 400;    // 20 inches backward
+    private static final int BACK_2_MS = 900;    // 45 inches backward
+
+    // TURN TIMES - ADJUST THESE TO CALIBRATE DEGREES
+    private static final int TURN_LEFT_MS = 520;  // LEFT TURN
+    private static final int TURN_RIGHT_MS = 520; // RIGHT TURN
+
     private static final int SETTLE_MS = 250;
 
     // Shooting
@@ -75,7 +83,7 @@ public class auton extends LinearOpMode {
         // 0. START OUTTAKE - STAYS ON THROUGHOUT AUTONOMOUS
         startFlywheel();
 
-        // 1. MOVE FORWARD
+        // 1. MOVE FORWARD - APPROXIMATELY 57 INCHES
         telemetry.addData("Status", "Moving Forward");
         telemetry.update();
 
@@ -112,8 +120,8 @@ public class auton extends LinearOpMode {
 
         if (!opModeIsActive()) return;
 
-        // 4. BACKWARD ~12 INCHES
-        telemetry.addData("Status", "Moving Backward");
+        // 4. MOVE BACKWARD - APPROXIMATELY 20 INCHES
+        telemetry.addData("Status", "Moving Backward 20 Inches");
         telemetry.update();
 
         teal.setPower(-DRIVE_POWER);
@@ -140,8 +148,8 @@ public class auton extends LinearOpMode {
 
         if (!opModeIsActive()) return;
 
-        // 6. BACKWARD ~45 INCHES
-        telemetry.addData("Status", "Moving Backward");
+        // 6. MOVE BACKWARD - APPROXIMATELY 45 INCHES TO PARK
+        telemetry.addData("Status", "Moving Backward to Park");
         telemetry.update();
 
         teal.setPower(-DRIVE_POWER);
