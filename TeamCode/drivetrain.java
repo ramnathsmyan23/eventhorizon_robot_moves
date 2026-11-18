@@ -31,7 +31,7 @@ public class everything {
 
         // Flywheel speeds (ticks per second, used with setVelocity)
         // With a working encoder these are ticks/sec. If no encoder is detected, they act as percent power (0-100).
-        private double flywheelPower = 55;
+        private double flywheelPower = 165;
         private double flywheelIdlePower = 5;
         // flywheelPower & flywheelIdlePower increment
         private double flywheelPowerInc = 1;
