@@ -9,6 +9,7 @@ import com.qualcomm.robotcore.hardware.DcMotor.ZeroPowerBehavior;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.Gamepad;
+import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
 @TeleOp(name = "Arcade Drive", group = "TeleOp")
@@ -366,15 +367,21 @@ public class everything extends LinearOpMode {
             }
 
             // -------------------------
-            // GATE SERVO
+            // GATE SERVO (Triggers a boolean that, while true, dictates whether the servo is moving)
             // -------------------------
 
-            if (currentGamepad.a) {
+            boolean servoIsOn = true;
+
+            if (currentGamepad.rightbumper > 0.25 && servoIsOn == true) {
                 gateServo.setPower(0.8);
-            } else if (currentGamepad.b) {
+                sleep(500);
+            } else if (currentGamepad.rightbumper < 0.25 && servoIsOn == true) {
+                servoIsOn = false;
                 gateServo.setPower(-0.8);
+                sleep(500);
             } else {
-                gateServo.setPower(0);
+                gateServo
+                servoIsOn = true;
             }
 
             // -------------------------
