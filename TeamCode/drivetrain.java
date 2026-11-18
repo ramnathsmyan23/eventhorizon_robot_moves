@@ -33,6 +33,9 @@ public class everything {
         // With a working encoder these are ticks/sec. If no encoder is detected, they act as percent power (0-100).
         private double flywheelPower = 55;
         private double flywheelIdlePower = 5;
+        // flywheelPower & flywheelIdlePower increment
+        private double flywheelPowerInc = 1;
+        private double flywheelIdlePowerInc = 1;
 
         // Encoder health check
         private boolean flywheelEncoderFailed = false;
@@ -145,24 +148,25 @@ public class everything {
                 // FLYWHEEL SPEED ADJUSTMENT
                 // -------------------------
 
-                // D-pad up increases speed by 5
+                // D-pad up increases speed by flywheelPowerInc
                 if (currentGamepad.dpad_up &&
                         !previousGamepad.dpad_up) {
-                    flywheelPower += 5;
+                    flywheelPower += flywheelPowerInc;
                 }
 
-                // D-pad down decreases speed by 5
+                // D-pad down decreases speed by flywheelPowerInc
                 if (currentGamepad.dpad_down &&
                         !previousGamepad.dpad_down) {
-                    flywheelPower = Math.max(0, flywheelPower - 5);
+                    flywheelPower = Math.max(0, flywheelPower - flywheelPowerInc);
                 }
 
-                // D-pad right/left adjusts the IDLE speed by 5
+                // D-pad right/left adjusts the IDLE speed by flywheelIdlePowerInc
                 if (currentGamepad.dpad_right && !previousGamepad.dpad_right) {
-                    flywheelIdlePower += 5;
+                    flywheelIdlePower += flywheelIdlePowerInc;
                 }
+                // D-pad right/left adjusts the IDLE speed by flywheelIdlePowerInc
                 if (currentGamepad.dpad_left && !previousGamepad.dpad_left) {
-                    flywheelIdlePower = Math.max(0, flywheelIdlePower - 5);
+                    flywheelIdlePower = Math.max(0, flywheelIdlePower - flywheelIdlePowerInc);
                 }
 
                 // -------------------------
