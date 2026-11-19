@@ -7,6 +7,7 @@ import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.Gamepad;
 import com.qualcomm.robotcore.hardware.CRServo;
+import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.hardware.DcMotor.ZeroPowerBehavior;
 import com.qualcomm.robotcore.hardware.DcMotor.RunMode;
 import com.qualcomm.robotcore.util.ElapsedTime;
@@ -20,7 +21,7 @@ public class everything {
         private DcMotor pink;
         private DcMotor intake;
         private DcMotorEx flywheel;
-        private CRServo gateServo;
+        private Servo gateServo;
 
         private Gamepad currentGamepad = new Gamepad();
         private Gamepad previousGamepad = new Gamepad();
@@ -53,7 +54,7 @@ public class everything {
             pink = hardwareMap.get(DcMotor.class, "pink");
             intake = hardwareMap.get(DcMotor.class, "intake");
             flywheel = hardwareMap.get(DcMotorEx.class, "flywheel");
-            gateServo = hardwareMap.get(CRServo.class, "gateServo");
+            gateServo = hardwareMap.get(Servo.class, "gateServo");
 
             teal.setDirection(DcMotorSimple.Direction.FORWARD);
             pink.setDirection(DcMotorSimple.Direction.REVERSE);
@@ -169,6 +170,12 @@ public class everything {
                     flywheelIdlePower = Math.max(0, flywheelIdlePower - flywheelIdlePowerInc);
                 }
 
+                if (currentGamepad.right_bumper) {
+                     gateServo.setPosition(1);   
+                } else {
+                    gateServo.setPosition(0.0);   
+                }
+                
                 // -------------------------
                 // FLYWHEEL POWER APPLICATION
                 // -------------------------
