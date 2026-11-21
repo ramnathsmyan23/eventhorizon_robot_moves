@@ -1,0 +1,169 @@
+package org.firstinspires.ftc.teamcode;
+
+import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
+import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
+import com.qualcomm.robotcore.hardware.CRServo;
+import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.DcMotorEx;
+import com.qualcomm.robotcore.hardware.DcMotorSimple;
+import com.qualcomm.robotcore.util.ElapsedTime;
+
+@Autonomous(name = "Basic Autonomous", group = "Autonomous")
+public class simpleauton extends LinearOpMode {
+
+    private DcMotor teal;
+    private DcMotor pink;
+    private DcMotor intake;
+    private DcMotorEx flywheel;
+    private CRServo gateServo;
+
+    // Drive
+    private static final double DRIVE_POWER = 0.5;
+    private static final double TURN_POWER = 0.4;
+
+    // =========================================
+    // MOVEMENT CALIBRATION
+    // Diagram estimate: 1 second = 50 inches
+    // =========================================
+
+    // STRAIGHT MOVEMENT TIMES
+    private static final int FORWARD_MS = 1140;  // 57 inches forward
+    private static final int BACK_1_MS = 400;    // 20 inches backward
+    private static final int BACK_2_MS = 900;    // 45 inches backward
+
+    // TURN TIMES - ADJUST THESE TO CALIBRATE DEGREES
+    private static final int TURN_LEFT_MS = 520;  // LEFT TURN
+    private static final int TURN_RIGHT_MS = 520; // RIGHT TURN
+
+    private static final int SETTLE_MS = 250;
+
+    // Shooting
+    private static final double FLYWHEEL_TARGET_VELOCITY = 200;
+    private static final double FLYWHEEL_FALLBACK_POWER = 0.55;
+    private static final double INTAKE_FEED_POWER = 0.7;
+    private static final double GATE_OPEN_POWER = 0.8;
+    private static final double SHOOT_TIME = 10.0;
+    private static final int INTAKE_WAIT_MS = 2000;
+
+    private boolean flywheelEncoderFailed = false;
+    private int flywheelStartPos = 0;
+    private final ElapsedTime timer = new ElapsedTime();
+
+    @Override
+    public void runOpMode() {
+
+        // Initialize hardware
+        teal = hardwareMap.get(DcMotor.class, "teal");
+        pink = hardwareMap.get(DcMotor.class, "pink");
+        intake = hardwareMap.get(DcMotor.class, "intake");
+        flywheel = hardwareMap.get(DcMotorEx.class, "flywheel");
+        gateServo = hardwareMap.get(CRServo.class, "gateServo");
+
+        teal.setDirection(DcMotorSimple.Direction.FORWARD);
+        pink.setDirection(DcMotorSimple.Direction.REVERSE);
+        flywheel.setDirection(DcMotorSimple.Direction.REVERSE);
+
+        // Set braking behavior
+        teal.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        pink.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        intake.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        flywheel.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
+
+        flywheel.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        flywheel.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+
+        telemetry.addData("Status", "Autonomous Ready!");
+        telemetry.update();
+
+        waitForStart();
+
+        if (!opModeIsActive()) return;
+
+        // 0. START OUTTAKE - STAYS ON THROUGHOUT AUTONOMOUS
+        startFlywheel();
+
+        // 1. MOVE FORWARD - APPROXIMATELY 57 INCHES
+        telemetry.addData("Status", "Moving Forward");
+        telemetry.update();
+
+        teal.setPower(DRIVE_POWER);
+        pink.setPower(DRIVE_POWER);
+        sleep(FORWARD_MS);
+
+        if (!opModeIsActive()) return;
+
+        // 2. TURN LEFT
+        telemetry.addData("Status", "Turning Left");
+        telemetry.update();
+
+        teal.setPower(-TURN_POWER);
+        pink.setPower(TURN_POWER);
+        sleep(TURN_LEFT_MS);
+
+        teal.setPower(0);
+        pink.setPower(0);
+        sleep(SETTLE_MS);
+
+        }
+    }
+
+    // INTAKE ON ONLY AT SHOOTING POSITION
+    // OUTTAKE STAYS ON THROUGHOUT
+    private void shoot() {
+
+        checkFlywheelEncoder();
+
+        // Intake and gate start only after the left turn
+        gateServo.setPower(GATE_OPEN_POWER);
+        intake.setPower(INTAKE_FEED_POWER);
+
+        // Wait 2 seconds after intake starts
+        sleep(INTAKE_WAIT_MS);
+
+        if (!opModeIsActive()) {
+            intake.setPower(0);
+            gateServo.setPower(0);
+            return;
+        }
+
+        // Shoot for 10 seconds
+        timer.reset();
+
+        while (opModeIsActive() && timer.seconds() < SHOOT_TIME) {
+
+            if (flywheelEncoderFailed) {
+                telemetry.addData(
+                        "Flywheel",
+                        "Fallback - %.0f%% power",
+                        FLYWHEEL_FALLBACK_POWER * 100
+                );
+            } else {
+                telemetry.addData(
+                        "Flywheel Target (ticks/s)",
+                        FLYWHEEL_TARGET_VELOCITY
+                );
+
+                telemetry.addData(
+                        "Flywheel Actual (ticks/s)",
+                        "%.1f",
+                        Math.abs(flywheel.getVelocity())
+                );
+            }
+
+            telemetry.addData("Intake", "ON");
+            telemetry.addData(
+                    "Shoot time left",
+                    "%.1f s",
+                    SHOOT_TIME - timer.seconds()
+            );
+
+            telemetry.update();
+            idle();
+        }
+
+        // Intake and gate OFF after motion
+        // Outtake remains ON
+        intake.setPower(0);
+        gateServo.setPower(0);
+    }
+}
