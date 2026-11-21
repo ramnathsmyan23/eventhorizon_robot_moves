@@ -249,7 +249,7 @@ public class everything extends LinearOpMode {
             turn = Math.pow(turn, 3);
 
             // L3 toggles reverse mode
-            if (currentGamepad.left_stick_button &&
+            /*if (currentGamepad.left_stick_button &&
                     !previousGamepad.left_stick_button) {
                 reverseMode = !reverseMode;
             }
@@ -260,7 +260,7 @@ public class everything extends LinearOpMode {
             // when the back is acting as the front.
             if (reverseMode) {
                 drive = -drive;
-            }
+            }*/
 
             double leftPower = drive + turn;
             double rightPower = drive - turn;
@@ -460,4 +460,3 @@ public class everything extends LinearOpMode {
         flywheel.setPower(0);
     }
 }
-
