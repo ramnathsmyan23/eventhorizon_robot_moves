@@ -1,262 +1,463 @@
 package org.firstinspires.ftc.teamcode;
 
-import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
+import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
+import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.DcMotor.RunMode;
+import com.qualcomm.robotcore.hardware.DcMotor.ZeroPowerBehavior;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.Gamepad;
-import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.Servo;
-import com.qualcomm.robotcore.hardware.DcMotor.ZeroPowerBehavior;
-import com.qualcomm.robotcore.hardware.DcMotor.RunMode;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
-public class everything {
+@TeleOp(name = "Arcade Drive", group = "TeleOp")
+public class everything extends LinearOpMode {
 
-    @TeleOp(name = "Arcade Drive", group = "TeleOp")
-    public static class ArcadeDriveTeleOp extends LinearOpMode {
+    // ------------------------------------------------------------------
+    // FLYWHEEL CONSTANTS
+    // ------------------------------------------------------------------
+    // true  = read ticks-per-rev and max RPM from the motor type chosen in
+    //         your Robot Configuration (recommended, if that type is right).
+    // false = always use the MANUAL values below (use this after you
+    //         measure ticks-per-rev with the X-button calibration).
+    private static final boolean USE_CONFIGURED_MOTOR_VALUES = true;
 
-        private DcMotor teal;
-        private DcMotor pink;
-        private DcMotor intake;
-        private DcMotorEx flywheel;
-        private Servo gateServo;
+    // Manual values (also the fallback if the configuration has no motor type).
+    // Ticks per ONE revolution of the FLYWHEEL itself (include any gearbox
+    // or belt ratio between the motor and the flywheel).
+    private static final double MANUAL_TICKS_PER_REV = 28.0;
+    private static final double MANUAL_MAX_RPM = 6000.0;
 
-        private Gamepad currentGamepad = new Gamepad();
-        private Gamepad previousGamepad = new Gamepad();
+    // Full-speed RPM target the OpMode starts with.
+    private static final double START_RPM = 165.0;
 
-        private boolean reverseMode = false;
-        private boolean flywheelToggledOn = false;
-        private boolean flywheelIdleToggledOn = false;
+    // How much each D-pad step changes the full-speed RPM target.
+    private static final double RPM_STEP = 1.0;
 
-        // Flywheel speeds (ticks per second, used with setVelocity)
-        // With a working encoder these are ticks/sec. If no encoder is detected, they act as percent power (0-100).
-        private double flywheelPower = 165;
-        private double flywheelIdlePower = 5;
-        // flywheelPower & flywheelIdlePower increment
-        private double flywheelPowerInc = 1;
-        private double flywheelIdlePowerInc = 1;
+    // Hold-to-repeat: after holding D-pad up/down for HOLD_DELAY_MS,
+    // the RPM keeps stepping every HOLD_REPEAT_MS until you let go.
+    private static final double HOLD_DELAY_MS = 400.0;
+    private static final double HOLD_REPEAT_MS = 50.0;
 
-        // Encoder health check
-        private boolean flywheelEncoderFailed = false;
-        private ElapsedTime encoderCheckTimer = new ElapsedTime();
-        private boolean encoderChecking = false;
-        private int encoderCheckStartPos = 0;
+    // Idle speed as a fraction of the full-speed target.
+    private static final double IDLE_FRACTION = 0.30;
 
-        // Joystick deadband
-        private static final double DEADBAND = 0.05;
+    // "Actual RPM" is measured from encoder position change over this window.
+    // Longer = steadier number, shorter = faster response.
+    private static final double RPM_WINDOW_MS = 250.0;
 
-        @Override
-        public void runOpMode() {
+    // Number of hand-turned revolutions used by the X-button calibration.
+    private static final double CALIBRATION_REVS = 10.0;
 
-            teal = hardwareMap.get(DcMotor.class, "teal");
-            pink = hardwareMap.get(DcMotor.class, "pink");
-            intake = hardwareMap.get(DcMotor.class, "intake");
-            flywheel = hardwareMap.get(DcMotorEx.class, "flywheel");
-            gateServo = hardwareMap.get(Servo.class, "gateServo");
+    // Startup encoder self-test: the flywheel is spun open-loop for a
+    // moment and the encoder must report movement, otherwise the encoder
+    // is not connected / not working and RPM control cannot work.
+    private static final double ENCODER_TEST_POWER = 0.5;
+    private static final long ENCODER_TEST_MS = 500;
+    private static final int ENCODER_TEST_MIN_TICKS = 5;
 
-            teal.setDirection(DcMotorSimple.Direction.FORWARD);
-            pink.setDirection(DcMotorSimple.Direction.REVERSE);
-            flywheel.setDirection(DcMotorSimple.Direction.REVERSE);
+    // Outtake gate servo (right bumper).
+    // Hold RB  = servo goes to GATE_HELD_POSITION and the intake runs.
+    // Release  = servo returns to GATE_REST_POSITION (where it starts).
+    // Servo positions are 0.0 - 1.0 across the servo's full travel.
+    private static final double GATE_REST_POSITION = 0.0;
+    private static final double GATE_HELD_POSITION = 0.4;
+    private static final double GATE_INTAKE_POWER = -0.4;
 
-            // Drive motors always BRAKE so the robot stops as soon as power hits 0
-            teal.setZeroPowerBehavior(ZeroPowerBehavior.BRAKE);
-            pink.setZeroPowerBehavior(ZeroPowerBehavior.BRAKE);
+    // Joystick deadband
+    private static final double DEADBAND = 0.05;
 
-            flywheel.setZeroPowerBehavior(ZeroPowerBehavior.FLOAT);
+    // ------------------------------------------------------------------
+    // HARDWARE
+    // ------------------------------------------------------------------
+    private DcMotor teal;
+    private DcMotor pink;
+    private DcMotor intake;
+    private DcMotorEx flywheel;
+    private Servo gateServo;
+    private String gateStatus = "OK";
 
-            // Velocity readings need the encoder running
-            flywheel.setMode(RunMode.STOP_AND_RESET_ENCODER);
+    private Gamepad currentGamepad = new Gamepad();
+    private Gamepad previousGamepad = new Gamepad();
+
+    // ------------------------------------------------------------------
+    // STATE
+    // ------------------------------------------------------------------
+    private boolean reverseMode = false;
+
+    // Right trigger toggles full speed (shooting)
+    private boolean flywheelToggledOn = false;
+
+    // Y toggles idle. Flywheel STARTS in idle mode.
+    private boolean flywheelIdleToggledOn = true;
+
+    // Full-speed target in RPM. Starts at START_RPM. D-pad adjusts it.
+    private double targetRpm = START_RPM;
+
+    // Values actually used for RPM math (chosen at startup).
+    private double ticksPerRev = MANUAL_TICKS_PER_REV;
+    private double maxRpm = MANUAL_MAX_RPM;
+    private String valuesSource = "manual";
+
+    // Set by the startup self-test. true = real RPM (velocity) control,
+    // false = encoder not working, fall back to open-loop power.
+    private boolean encoderWorks = false;
+
+    // X toggles calibration mode (motor off, turn the flywheel by hand).
+    private boolean calibrating = false;
+
+    // Measured RPM (from encoder position change)
+    private int lastRpmPos = 0;
+    private double lastRpmTimeMs = 0;
+    private double measuredRpm = 0;
+
+    // Timers for D-pad hold-to-repeat
+    private final ElapsedTime clock = new ElapsedTime();
+    private double upPressedAt = 0;
+    private double upLastStep = 0;
+    private double downPressedAt = 0;
+    private double downLastStep = 0;
+
+    // ------------------------------------------------------------------
+    // HELPERS
+    // ------------------------------------------------------------------
+
+    // setVelocity / getVelocity use ticks per second
+    private double rpmToTicksPerSec(double rpm) {
+        return rpm * ticksPerRev / 60.0;
+    }
+
+    private double ticksPerSecToRpm(double ticksPerSec) {
+        return ticksPerSec * 60.0 / ticksPerRev;
+    }
+
+    // Spins the flywheel open-loop briefly and checks the encoder moved.
+    private boolean testFlywheelEncoder() {
+        flywheel.setMode(RunMode.STOP_AND_RESET_ENCODER);
+        flywheel.setMode(RunMode.RUN_WITHOUT_ENCODER);
+
+        int startPos = flywheel.getCurrentPosition();
+        flywheel.setPower(ENCODER_TEST_POWER);
+        sleep(ENCODER_TEST_MS);
+        int endPos = flywheel.getCurrentPosition();
+        flywheel.setPower(0);
+
+        return Math.abs(endPos - startPos) >= ENCODER_TEST_MIN_TICKS;
+    }
+
+    // Puts the flywheel in the correct run mode for normal driving.
+    private void applyFlywheelRunMode() {
+        flywheel.setMode(RunMode.STOP_AND_RESET_ENCODER);
+        if (encoderWorks) {
             flywheel.setMode(RunMode.RUN_USING_ENCODER);
+        } else {
+            flywheel.setMode(RunMode.RUN_WITHOUT_ENCODER);
+        }
+    }
 
-            telemetry.addLine("Ready!");
-            telemetry.update();
+    private void resetRpmMeasurement() {
+        lastRpmPos = flywheel.getCurrentPosition();
+        lastRpmTimeMs = clock.milliseconds();
+        measuredRpm = 0;
+    }
 
-            waitForStart();
+    @Override
+    public void runOpMode() {
 
-            while (opModeIsActive()) {
+        teal = hardwareMap.get(DcMotor.class, "teal");
+        pink = hardwareMap.get(DcMotor.class, "pink");
+        intake = hardwareMap.get(DcMotor.class, "intake");
+        flywheel = hardwareMap.get(DcMotorEx.class, "flywheel");
+        // tryGet returns null (instead of crashing the whole OpMode) if "gateServo"
+        // is not configured as a regular Servo. Driving and the flywheel still work.
+        gateServo = hardwareMap.tryGet(Servo.class, "gateServo");
+        if (gateServo == null) {
+            if (hardwareMap.tryGet(CRServo.class, "gateServo") != null) {
+                gateStatus = "gateServo is set as a CONTINUOUS ROTATION servo in Robot Configuration. Change its type to Servo, save, and activate it.";
+            } else {
+                gateStatus = "No device named gateServo in the ACTIVE Robot Configuration. Check the name, the hub, and that the config is activated.";
+            }
+        }
 
-                currentGamepad.copy(gamepad1);
+        teal.setDirection(DcMotorSimple.Direction.FORWARD);
+        pink.setDirection(DcMotorSimple.Direction.REVERSE);
+        flywheel.setDirection(DcMotorSimple.Direction.REVERSE);
 
-                // -------------------------
-                // ARCADE DRIVE
-                // -------------------------
+        // Drive motors always BRAKE so the robot stops as soon as power hits 0
+        teal.setZeroPowerBehavior(ZeroPowerBehavior.BRAKE);
+        pink.setZeroPowerBehavior(ZeroPowerBehavior.BRAKE);
 
-                double drive = -currentGamepad.left_stick_y;
-                double turn = currentGamepad.right_stick_x;
+        flywheel.setZeroPowerBehavior(ZeroPowerBehavior.FLOAT);
 
-                // Deadband: hard zero near center so motors get exactly 0 power
-                if (Math.abs(drive) < DEADBAND) drive = 0;
-                if (Math.abs(turn) < DEADBAND) turn = 0;
+        // Pick the ticks-per-rev and max RPM used for all RPM math
+        if (USE_CONFIGURED_MOTOR_VALUES) {
+            double cfgTicks = flywheel.getMotorType().getTicksPerRev();
+            double cfgMaxRpm = flywheel.getMotorType().getMaxRPM();
+            if (cfgTicks > 0) {
+                ticksPerRev = cfgTicks;
+                valuesSource = "config";
+            }
+            if (cfgMaxRpm > 0) {
+                maxRpm = cfgMaxRpm;
+                valuesSource = "config";
+            }
+        }
 
-                // Cubic sensitivity
-                drive = Math.pow(drive, 3);
-                turn = Math.pow(turn, 3);
+        flywheel.setMode(RunMode.STOP_AND_RESET_ENCODER);
+        flywheel.setMode(RunMode.RUN_WITHOUT_ENCODER);
 
-                // L3 toggles reverse mode
-                if (currentGamepad.left_stick_button &&
-                        !previousGamepad.left_stick_button) {
-                    reverseMode = !reverseMode;
-                }
+        telemetry.addLine("Ready! (flywheel encoder test runs on START)");
+        if (gateServo == null) {
+            telemetry.addData("WARNING gateServo", gateStatus);
+        }
+        telemetry.addData("Ticks/rev | Max RPM", "%.1f | %.0f (%s)",
+                ticksPerRev, maxRpm, valuesSource);
+        telemetry.update();
 
-                if (reverseMode) {
-                    drive = -drive;
-                    turn = -turn;
-                }
+        waitForStart();
 
-                double leftPower = drive + turn;
-                double rightPower = drive - turn;
+        // -------------------------
+        // FLYWHEEL ENCODER SELF-TEST (about half a second after START)
+        // -------------------------
+        telemetry.addLine("Testing flywheel encoder...");
+        telemetry.update();
 
-                // Keep motor power within range
-                double max = Math.max(1.0,
-                        Math.max(Math.abs(leftPower), Math.abs(rightPower)));
+        encoderWorks = testFlywheelEncoder();
+        applyFlywheelRunMode();
+        resetRpmMeasurement();
 
-                leftPower /= max;
-                rightPower /= max;
+        while (opModeIsActive()) {
 
-                teal.setPower(leftPower);
-                pink.setPower(rightPower);
+            currentGamepad.copy(gamepad1);
+            double nowMs = clock.milliseconds();
 
-                // -------------------------
-                // INTAKE
-                // -------------------------
+            // -------------------------
+            // ARCADE DRIVE
+            // -------------------------
 
-                if (currentGamepad.left_trigger > 0.25) {
-                    intake.setPower(1.0);
-                } else if (currentGamepad.left_bumper) {
-                    intake.setPower(-0.7);
-                } else {
-                    intake.setPower(0);
-                }
+            double drive = -currentGamepad.left_stick_y;
+            double turn = currentGamepad.right_stick_x;
 
-                // -------------------------
-                // FLYWHEEL TOGGLE
-                // -------------------------
+            // Deadband: hard zero near center so motors get exactly 0 power
+            if (Math.abs(drive) < DEADBAND) drive = 0;
+            if (Math.abs(turn) < DEADBAND) turn = 0;
 
-                // Press right trigger once to turn flywheel ON/OFF
-                if (currentGamepad.right_trigger > 0.25 &&
-                        previousGamepad.right_trigger <= 0.25) {
-                    flywheelToggledOn = !flywheelToggledOn;
-                }
+            // Cubic sensitivity
+            drive = Math.pow(drive, 3);
+            turn = Math.pow(turn, 3);
 
-                // Press Y once to turn flywheel IDLE on/off
-                if (currentGamepad.y && !previousGamepad.y) {
-                    flywheelIdleToggledOn = !flywheelIdleToggledOn;
-                }
+            // L3 toggles reverse mode
+            if (currentGamepad.left_stick_button &&
+                    !previousGamepad.left_stick_button) {
+                reverseMode = !reverseMode;
+            }
 
-                // -------------------------
-                // FLYWHEEL SPEED ADJUSTMENT
-                // -------------------------
+            // 180-degree mode: forward/back is flipped, but steering is NOT
+            // flipped. Pushing the stick right still spins the robot the same
+            // way as normal mode, which makes the physical front swing left
+            // when the back is acting as the front.
+            if (reverseMode) {
+                drive = -drive;
+            }
 
-                // D-pad up increases speed by flywheelPowerInc
-                if (currentGamepad.dpad_up &&
-                        !previousGamepad.dpad_up) {
-                    flywheelPower += flywheelPowerInc;
-                }
+            double leftPower = drive + turn;
+            double rightPower = drive - turn;
 
-                // D-pad down decreases speed by flywheelPowerInc
-                if (currentGamepad.dpad_down &&
-                        !previousGamepad.dpad_down) {
-                    flywheelPower = Math.max(0, flywheelPower - flywheelPowerInc);
-                }
+            // Keep motor power within range
+            double max = Math.max(1.0,
+                    Math.max(Math.abs(leftPower), Math.abs(rightPower)));
 
-                // D-pad right/left adjusts the IDLE speed by flywheelIdlePowerInc
-                if (currentGamepad.dpad_right && !previousGamepad.dpad_right) {
-                    flywheelIdlePower += flywheelIdlePowerInc;
-                }
-                // D-pad right/left adjusts the IDLE speed by flywheelIdlePowerInc
-                if (currentGamepad.dpad_left && !previousGamepad.dpad_left) {
-                    flywheelIdlePower = Math.max(0, flywheelIdlePower - flywheelIdlePowerInc);
-                }
+            leftPower /= max;
+            rightPower /= max;
 
-                if (currentGamepad.right_bumper) {
-                     gateServo.setPosition(1);   
-                } else {
-                    gateServo.setPosition(0.0);   
-                }
-                
-                // -------------------------
-                // FLYWHEEL POWER APPLICATION
-                // -------------------------
+            teal.setPower(leftPower);
+            pink.setPower(rightPower);
 
-                double flywheelTarget = 0;
-                if (flywheelToggledOn) {
-                    flywheelTarget = flywheelPower;      // Full shooting speed
-                } else if (flywheelIdleToggledOn) {
-                    flywheelTarget = flywheelIdlePower;  // Idle speed (toggled with Y)
-                }
+            // -------------------------
+            // INTAKE
+            // -------------------------
 
-                // Detect a missing/unplugged encoder: commanded to spin but position never changes
-                if (!flywheelEncoderFailed) {
-                    if (flywheelTarget > 0) {
-                        if (!encoderChecking) {
-                            encoderChecking = true;
-                            encoderCheckTimer.reset();
-                            encoderCheckStartPos = flywheel.getCurrentPosition();
-                        } else if (encoderCheckTimer.seconds() > 1.0 &&
-                                flywheel.getCurrentPosition() == encoderCheckStartPos) {
-                            flywheelEncoderFailed = true;
-                            flywheel.setMode(RunMode.RUN_WITHOUT_ENCODER);
-                        }
-                    } else {
-                        encoderChecking = false;
-                    }
-                }
-
-                if (flywheelEncoderFailed) {
-                    // No encoder: drive by percent power instead
-                    flywheel.setPower(Math.min(1.0, flywheelTarget / 100.0));
-                } else {
-                    flywheel.setVelocity(flywheelTarget);
-                }
-
-                // -------------------------
-                // GATE SERVO
-                // -------------------------
-
-                if (currentGamepad.a) {
-                    gateServo.setPower(0.8);
-                } else if (currentGamepad.b) {
-                    gateServo.setPower(-0.8);
-                } else {
-                    gateServo.setPower(0);
-                }
-
-                // -------------------------
-                // TELEMETRY
-                // -------------------------
-
-                telemetry.addData("Reverse Mode", reverseMode ? "ON" : "OFF");
-                telemetry.addData("Flywheel", flywheelToggledOn ? "ON" : (flywheelIdleToggledOn ? "IDLE" : "OFF"));
-                if (flywheelEncoderFailed) {
-                    telemetry.addData("Flywheel Encoder", "NOT DETECTED - using % power");
-                    telemetry.addData("Flywheel Commanded Power %", "%.0f", Math.min(100, flywheelTarget));
-                } else {
-                    telemetry.addData("Flywheel Target (ticks/s)", flywheelTarget);
-                    telemetry.addData("Flywheel Actual (ticks/s)", "%.1f", Math.abs(flywheel.getVelocity()));
-                }
-                telemetry.addData("Shoot Speed / Idle Speed", "%.0f / %.0f", flywheelPower, flywheelIdlePower);
-                // Encoder positions: shows which port the flywheel encoder is really plugged into
-                telemetry.addData("Enc Pos flywheel/teal/pink/intake", "%d / %d / %d / %d",
-                        flywheel.getCurrentPosition(), teal.getCurrentPosition(),
-                        pink.getCurrentPosition(), intake.getCurrentPosition());
-                telemetry.addData("Intake Power", intake.getPower());
-                telemetry.update();
-
-                // Save current gamepad state for next loop
-                previousGamepad.copy(currentGamepad);
+            if (currentGamepad.left_trigger > 0.25) {
+                intake.setPower(-1.0);
+            } else if (currentGamepad.left_bumper) {
+                intake.setPower(1.0);
+            } else {
+                intake.setPower(0);
             }
 
             // -------------------------
-            // STOP ALL MOTORS
+            // FLYWHEEL TOGGLES
             // -------------------------
 
-            teal.setPower(0);
-            pink.setPower(0);
-            intake.setPower(0);
-            flywheel.setVelocity(0);
-            gateServo.setPower(0);
+            // Right trigger (single press) toggles full speed ON/OFF.
+            // Second press returns to the baseline (idle 30% or off 0%).
+            if (currentGamepad.right_trigger > 0.25 &&
+                    previousGamepad.right_trigger <= 0.25) {
+                flywheelToggledOn = !flywheelToggledOn;
+            }
+
+            // Y (single press) toggles idle mode ON/OFF
+            if (currentGamepad.y && !previousGamepad.y) {
+                flywheelIdleToggledOn = !flywheelIdleToggledOn;
+            }
+
+            // X (single press) toggles calibration mode
+            if (currentGamepad.x && !previousGamepad.x) {
+                calibrating = !calibrating;
+                if (calibrating) {
+                    // Motor off, encoder zeroed so you can count turns by hand
+                    flywheel.setPower(0);
+                    flywheel.setMode(RunMode.STOP_AND_RESET_ENCODER);
+                    flywheel.setMode(RunMode.RUN_WITHOUT_ENCODER);
+                } else {
+                    applyFlywheelRunMode();
+                }
+                resetRpmMeasurement();
+            }
+
+            // -------------------------
+            // FLYWHEEL RPM ADJUSTMENT (5 RPM per step, hold to repeat)
+            // -------------------------
+
+            // D-pad up: +5 RPM on press, keeps climbing while held (capped at max RPM)
+            if (currentGamepad.dpad_up) {
+                if (!previousGamepad.dpad_up) {
+                    // First press: step once right away
+                    upPressedAt = nowMs;
+                    upLastStep = nowMs;
+                    targetRpm = Math.min(maxRpm, targetRpm + RPM_STEP);
+                } else if (nowMs - upPressedAt >= HOLD_DELAY_MS
+                        && nowMs - upLastStep >= HOLD_REPEAT_MS) {
+                    // Held long enough: repeat
+                    upLastStep = nowMs;
+                    targetRpm = Math.min(maxRpm, targetRpm + RPM_STEP);
+                }
+            }
+
+            // D-pad down: -5 RPM on press, keeps dropping while held (not below 0)
+            if (currentGamepad.dpad_down) {
+                if (!previousGamepad.dpad_down) {
+                    downPressedAt = nowMs;
+                    downLastStep = nowMs;
+                    targetRpm = Math.max(0, targetRpm - RPM_STEP);
+                } else if (nowMs - downPressedAt >= HOLD_DELAY_MS
+                        && nowMs - downLastStep >= HOLD_REPEAT_MS) {
+                    downLastStep = nowMs;
+                    targetRpm = Math.max(0, targetRpm - RPM_STEP);
+                }
+            }
+
+            // -------------------------
+            // FLYWHEEL OUTPUT  (this is what actually moves the real motor)
+            // -------------------------
+
+            double commandedRpm;
+            String flywheelState;
+
+            if (flywheelToggledOn) {
+                commandedRpm = targetRpm;                    // full speed target
+                flywheelState = "FULL";
+            } else if (flywheelIdleToggledOn) {
+                commandedRpm = targetRpm * IDLE_FRACTION;    // 30% idle
+                flywheelState = "IDLE";
+            } else {
+                commandedRpm = 0;                            // off
+                flywheelState = "OFF";
+            }
+
+            if (calibrating) {
+                // Motor stays off so the flywheel can be turned by hand
+                flywheel.setPower(0);
+            } else if (encoderWorks) {
+                // Real closed-loop RPM control
+                flywheel.setVelocity(rpmToTicksPerSec(commandedRpm));
+            } else {
+                // Encoder not working: open-loop power estimate (RPM / max RPM)
+                flywheel.setPower(Math.min(1.0, commandedRpm / maxRpm));
+            }
+
+            // -------------------------
+            // MEASURED FLYWHEEL RPM (from encoder position change)
+            // -------------------------
+
+            if (!calibrating && nowMs - lastRpmTimeMs >= RPM_WINDOW_MS) {
+                int pos = flywheel.getCurrentPosition();
+                double minutes = (nowMs - lastRpmTimeMs) / 60000.0;
+                measuredRpm = Math.abs(pos - lastRpmPos) / ticksPerRev / minutes;
+                lastRpmPos = pos;
+                lastRpmTimeMs = nowMs;
+            }
+
+            // -------------------------
+            // OUTTAKE GATE SERVO (right bumper)
+            // Hold RB: gate servo to 0.5 and intake at 0.6. Release: servo back to 0.0.
+            // -------------------------
+
+            boolean rbHeld = currentGamepad.right_bumper;
+            double gatePosition = rbHeld ? GATE_HELD_POSITION : GATE_REST_POSITION;
+
+            if (gateServo != null) {
+                gateServo.setPosition(gatePosition);
+            }
+            if (rbHeld) {
+                intake.setPower(GATE_INTAKE_POWER);
+            }
+
+            // -------------------------
+            // TELEMETRY
+            // -------------------------
+
+            telemetry.addData("Reverse Mode", reverseMode ? "ON" : "OFF");
+
+            if (calibrating) {
+                double ticksCounted = Math.abs(flywheel.getCurrentPosition());
+                telemetry.addLine("*** FLYWHEEL CALIBRATION - flywheel motor is OFF ***");
+                telemetry.addData("Do this", "Turn the flywheel BY HAND exactly %.0f full revolutions", CALIBRATION_REVS);
+                telemetry.addData("Ticks counted", "%.0f", ticksCounted);
+                telemetry.addData("Measured ticks per rev", "%.1f", ticksCounted / CALIBRATION_REVS);
+                telemetry.addLine("Press X to exit calibration");
+            } else {
+                telemetry.addData("Flywheel State", flywheelState);
+                telemetry.addData("Flywheel Control",
+                        encoderWorks ? "RPM (encoder OK)" : "OPEN-LOOP (NO ENCODER SIGNAL - check cable)");
+                telemetry.addData("Ticks/rev | Max RPM", "%.1f | %.0f (%s)",
+                        ticksPerRev, maxRpm, valuesSource);
+                telemetry.addData("Full-Speed Target (RPM)", "%.0f", targetRpm);
+                telemetry.addData("Flywheel Commanded (RPM)", "%.0f", commandedRpm);
+                if (encoderWorks) {
+                    telemetry.addData("Flywheel Actual (RPM)", "%.0f", measuredRpm);
+                    telemetry.addData("Flywheel Hub Velocity (RPM)", "%.0f",
+                            Math.abs(ticksPerSecToRpm(flywheel.getVelocity())));
+                } else {
+                    telemetry.addData("Flywheel Actual (RPM)", "n/a (no encoder)");
+                    telemetry.addData("Flywheel Power Sent", "%.3f", flywheel.getPower());
+                }
+                telemetry.addData("Flywheel Encoder Position", flywheel.getCurrentPosition());
+            }
+            telemetry.addData("RB (gate button)", rbHeld ? "PRESSED" : "released");
+            if (gateServo != null) {
+                telemetry.addData("Outtake Gate", "servo position sent: %.2f (%s)",
+                        gatePosition, rbHeld ? "RB held" : "rest");
+            } else {
+                telemetry.addData("Outtake Gate NOT WORKING", gateStatus);
+            }
+            telemetry.addData("Intake Power", intake.getPower());
+            telemetry.update();
+
+            // Save current gamepad state for next loop
+            previousGamepad.copy(currentGamepad);
         }
+
+        // -------------------------
+        // STOP ALL MOTORS
+        // -------------------------
+
+        teal.setPower(0);
+        pink.setPower(0);
+        intake.setPower(0);
+        flywheel.setPower(0);
     }
 }
+
